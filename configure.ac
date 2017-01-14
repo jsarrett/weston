@@ -557,6 +557,35 @@ if test x$enable_wcap_tools = xyes; then
   WCAP_LIBS="$WCAP_LIBS -lm"
 fi
 
+
+AC_ARG_ENABLE(hmd,
+    AS_HELP_STRING([--disable-hmd]
+        [Support HMDs (requires EGL)]), [],
+    enable_hmd=yes)
+AC_ARG_WITH(hmdlib,
+	    AS_HELP_STRING([--with-hmdlib=@<:@none@:>@]
+			   [Which HMD library to use]),
+			   [],[with_hmdlib="none"])
+AS_IF([test "x$enable_egl" = "xyes"], [
+	AM_CONDITIONAL([ENABLE_HMD], test "x$enable_hmd" = "xyes") #add postcompositor source
+	AS_IF([test "x$enable_hmd" = "xyes"],
+		[AC_DEFINE([ENABLE_HMD], [1], ["Enable HMD support"])],
+		[AC_DEFINE([ENABLE_HMD], [0], ["Disable HMD support"])]
+	)
+
+	AS_CASE(["$with_hmdlib"],
+		[
+			#no hmdlib chosen
+			AC_DEFINE([HMDLIB_NONE], [], ["no HMD library"])
+			HMD_CFLAGS=""
+			HMD_LIBS=""
+		])
+],[
+	AC_DEFINE([ENABLE_HMD], [0], ["Disable HMD support"])
+])
+AC_SUBST(HMD_CFLAGS)
+AC_SUBST(HMD_LIBS)
+
 PKG_CHECK_MODULES(SETBACKLIGHT, [libudev libdrm], enable_setbacklight=yes, enable_setbacklight=no)
 AM_CONDITIONAL(BUILD_SETBACKLIGHT, test "x$enable_setbacklight" = "xyes")
 
@@ -685,6 +714,8 @@ AC_MSG_RESULT([
 	JUnit XML output		${enable_junit_xml}
 
 	Raspberry Pi BCM headers	${have_bcm_host}
+	HMD Support			${enable_hmd}
+	Using HMD library		${with_hmdlib}
 
 	Build Clients			${enable_clients}
 	Build EGL Clients		${have_cairo_egl}

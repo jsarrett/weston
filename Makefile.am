@@ -234,18 +234,23 @@ endif
 if ENABLE_EGL
 module_LTLIBRARIES += gl-renderer.la
 gl_renderer_la_LDFLAGS = -module -avoid-version
-gl_renderer_la_LIBADD = $(COMPOSITOR_LIBS) $(EGL_LIBS)
+gl_renderer_la_LIBADD = $(COMPOSITOR_LIBS) $(EGL_LIBS) $(HMD_LIBS)
 gl_renderer_la_CFLAGS =				\
 	$(COMPOSITOR_CFLAGS)			\
 	$(EGL_CFLAGS)				\
 	$(GL_RENDERER_CFLAGS)			\
-	$(AM_CFLAGS)
+	$(AM_CFLAGS)				\
+    $(HMD_CFLAGS)
 gl_renderer_la_SOURCES =			\
 	src/gl-renderer.h			\
 	src/gl-renderer.c			\
 	src/vertex-clipping.c			\
 	src/vertex-clipping.h			\
 	shared/helpers.h
+if ENABLE_HMD
+gl_renderer_la_SOURCES += src/postcompositor-hmd.c
+gl_renderer_la_SOURCES += src/postcompositor-hmd.h
+endif
 endif
 
 if ENABLE_X11_COMPOSITOR
