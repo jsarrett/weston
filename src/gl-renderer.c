@@ -46,6 +46,11 @@
 #include "shared/helpers.h"
 #include "weston-egl-ext.h"
 
+#if ENABLE_HMD
+	#include "hmd.h"
+	#include "postcompositor-hmd.h"
+#endif
+
 struct gl_shader {
 	GLuint program;
 	GLuint vertex_shader, fragment_shader;
@@ -213,6 +218,10 @@ struct gl_renderer {
 	struct gl_shader invert_color_shader;
 	struct gl_shader solid_shader;
 	struct gl_shader *current_shader;
+
+#if ENABLE_HMD
+	struct hmd_state *hmd;
+#endif
 
 	struct wl_signal destroy_signal;
 };
@@ -1092,6 +1101,11 @@ gl_renderer_repaint_output(struct weston_output *output,
 	if (use_output(output) < 0)
 		return;
 
+#if ENABLE_HMD
+    if (gr->hmd->enabled)
+    glBindFramebuffer(GL_FRAMEBUFFER, gr->hmd->redirectedFramebuffer);
+#endif
+
 	/* Calculate the viewport */
 	glViewport(go->borders[GL_RENDERER_BORDER_LEFT].width,
 		   go->borders[GL_RENDERER_BORDER_BOTTOM].height,
@@ -1139,6 +1153,18 @@ gl_renderer_repaint_output(struct weston_output *output,
 
 	pixman_region32_copy(&output->previous_damage, output_damage);
 	wl_signal_emit(&output->frame_signal, output);
+
+#if ENABLE_HMD
+	if (gr->hmd->enabled) {
+		GLuint original_program = gr->current_shader->program;
+
+		render_hmd(gr->hmd);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		// set program back to original shader program
+		glUseProgram(original_program);
+	}
+#endif
 
 #ifdef EGL_EXT_swap_buffers_with_damage
 	if (gr->swap_buffers_with_damage) {
@@ -2603,6 +2629,14 @@ gl_renderer_output_create(struct weston_output *output,
 			return -1;
 		}
 
+#if ENABLE_HMD
+    if (setup_hmd(gr->hmd, output) < 0) {
+		weston_log("failed to setup HMD\n");
+		free(go);
+		return -1;
+    }
+#endif
+
 	for (i = 0; i < BUFFER_DAMAGE_COUNT; i++)
 		pixman_region32_init(&go->buffer_damage[i]);
 
@@ -2959,6 +2993,13 @@ gl_renderer_create(struct weston_compositor *ec, EGLenum platform,
 	wl_display_add_shm_format(ec->wl_display, WL_SHM_FORMAT_RGB565);
 
 	wl_signal_init(&gr->destroy_signal);
+
+#if ENABLE_HMD
+    if (create_hmd(&(gr->hmd), ec) < 0) {
+		weston_log("failed to create HMD\n");
+		goto fail_terminate;
+    }
+#endif
 
 	return 0;
 
